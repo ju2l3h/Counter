@@ -1,0 +1,312 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Life Counter – Notion-Embeddable</title>
+  <style>
+    /* ============== BASIC, NOTION-FRIENDLY STYLES ==============
+       - Keep things simple so the page looks good inside Notion's embed.
+       - Use system fonts for fast loading.
+       - Avoid external CSS/JS so it works when hosted anywhere.
+    */
+    :root {
+      --bg: #0b1220;
+      --card: #121a2b;
+      --text: #e9f2ff;
+      --muted: #a9b4c7;
+      --accent: #59b3ff;
+      --good: #5dd39e;
+      --warn: #ffc857;
+      --danger: #ff6b6b;
+      --radius: 18px;
+    }
+    html, body {
+      height: 100%;
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+    }
+    .wrap {
+      max-width: 860px;
+      margin: 0 auto;
+      padding: 18px;
+      display: grid;
+      gap: 16px;
+    }
+    h1 { font-size: 1.4rem; margin: 8px 0; letter-spacing: 0.3px; }
+    p { color: var(--muted); margin: 0; }
+    .card {
+      background: radial-gradient(1200px 600px at 20% -10%, rgba(89,179,255,0.15), transparent),
+                  radial-gradient(800px 400px at 120% 120%, rgba(93,211,158,0.10), transparent),
+                  var(--card);
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: var(--radius);
+      padding: 16px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.35);
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0,1fr));
+      gap: 12px;
+    }
+    .stat {
+      display: grid;
+      gap: 8px;
+      padding: 12px;
+      border-radius: 14px;
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.06);
+    }
+    .k {
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+    .v {
+      font-size: 1.6rem;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+    input, select {
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.18);
+      color: var(--text);
+      border-radius: 12px;
+      padding: 10px 12px;
+      font-size: 0.95rem;
+      outline: none;
+    }
+    input[type="number"] { width: 120px; }
+    input[type="date"] { width: 160px; }
+    .pill {
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-size: 0.8rem;
+      border: 1px solid rgba(255,255,255,0.12);
+      color: var(--muted);
+    }
+    .progress {
+      height: 14px;
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.18);
+      border-radius: 999px;
+      overflow: hidden;
+    }
+    .bar {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, var(--accent), var(--good));
+      transition: width 0.6s ease;
+    }
+    .footer { font-size: 0.82rem; color: var(--muted); }
+    .links a { color: var(--accent); text-decoration: none; }
+    .links a:hover { text-decoration: underline; }
+    @media (max-width: 640px) {
+      .grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h1>⏳ Life Counter</h1>
+      <p>Real‑time age, progress and remaining time. Embed this page in Notion using an <b>Embed</b> block.</p>
+    </div>
+
+    <!-- ====================== SETTINGS CARD ====================== -->
+    <div class="card">
+      <div class="row" style="justify-content: space-between;">
+        <div class="row">
+          <label class="pill">Date of birth</label>
+          <input id="dob" type="date" value="1997-08-19" />
+          <label class="pill">Life expectancy (years)</label>
+          <input id="expectancy" type="number" step="0.1" value="81.2" />
+          <select id="presets">
+            <option value="">— presets —</option>
+            <option value="81.2">Singapore male (2024)</option>
+            <option value="83.5">Singapore total (2024)</option>
+            <option value="72.0">Malaysia male (2024)</option>
+            <option value="73.1">World (WHO, 2019)</option>
+          </select>
+        </div>
+        <div class="row">
+          <button id="save" style="cursor:pointer;background:rgba(255,255,255,0.10);border:1px solid rgba(255,255,255,0.2);padding:10px 12px;border-radius:12px;color:var(--text);">Save</button>
+          <button id="link" style="cursor:pointer;background:rgba(255,255,255,0.10);border:1px solid rgba(255,255,255,0.2);padding:10px 12px;border-radius:12px;color:var(--text);">Copy shareable URL</button>
+        </div>
+      </div>
+      <p class="footer">Tip: The URL supports <code>?dob=YYYY-MM-DD&amp;expectancy=YEARS</code>. Example: <code>?dob=1997-08-19&amp;expectancy=81.2</code></p>
+    </div>
+
+    <!-- ====================== SUMMARY ====================== -->
+    <div class="card">
+      <div class="grid">
+        <div class="stat">
+          <div class="k">Age now</div>
+          <div class="v" id="age"></div>
+        </div>
+        <div class="stat">
+          <div class="k">Expected end date</div>
+          <div class="v" id="endDate"></div>
+        </div>
+        <div class="stat">
+          <div class="k">Time lived</div>
+          <div class="v" id="lived"></div>
+        </div>
+        <div class="stat">
+          <div class="k">Time remaining</div>
+          <div class="v" id="left"></div>
+        </div>
+      </div>
+      <div style="margin-top:14px;">
+        <div class="row" style="justify-content: space-between;">
+          <div class="k">Life progress</div>
+          <div class="k" id="pct"></div>
+        </div>
+        <div class="progress"><div class="bar" id="bar"></div></div>
+      </div>
+    </div>
+
+    <div class="card links">
+      <p><b>Sources (latest available):</b>
+        • Singapore life expectancy 2024 (MOH/SingStat)
+        • Malaysia life expectancy 2024 (DOSM Open Data)
+        • Global life expectancy 2019 (WHO GHE)</p>
+    </div>
+  </div>
+
+  <script>
+    // ===================== UTILS: DATE & FORMATTING =====================
+    const pad2 = (n) => String(n).padStart(2, "0");
+
+    // Format a timespan (in milliseconds) into "Xy Xm Xd Xh Xm Xs"
+    function fmtSpan(ms) {
+      // Guard for negative
+      const neg = ms < 0;
+      ms = Math.abs(ms);
+
+      const sec = 1000;
+      const min = 60 * sec;
+      const hr  = 60 * min;
+      const day = 24 * hr;
+      const yr  = 365.2425 * day; // tropical year average
+
+      const years = Math.floor(ms / yr);  ms -= years * yr;
+      const months = Math.floor(ms / (30.436875 * day)); ms -= months * (30.436875 * day); // avg month
+      const days = Math.floor(ms / day);  ms -= days * day;
+      const hours = Math.floor(ms / hr);  ms -= hours * hr;
+      const mins  = Math.floor(ms / min); ms -= mins * min;
+      const secs  = Math.floor(ms / sec);
+
+      const parts = [];
+      if (years) parts.push(`${years}y`);
+      if (months) parts.push(`${months}m`);
+      if (days) parts.push(`${days}d`);
+      parts.push(`${pad2(hours)}h ${pad2(mins)}m ${pad2(secs)}s`);
+      return (neg ? "-" : "") + parts.join(" ");
+    }
+
+    // Parse query params (e.g., ?dob=1997-08-19&expectancy=81.2)
+    function getParams() {
+      const sp = new URLSearchParams(location.search);
+      const p = {};
+      if (sp.has("dob")) p.dob = sp.get("dob");
+      if (sp.has("expectancy")) p.expectancy = parseFloat(sp.get("expectancy"));
+      return p;
+    }
+
+    // Compute expected "end date" (dob + expectancy years)
+    function computeEndDate(dob, expectancyYears) {
+      // Add integer years, then fractional portion as days to reduce leap-year drift
+      const whole = Math.floor(expectancyYears);
+      const frac = expectancyYears - whole;
+      const d = new Date(dob);
+      const end = new Date(d);
+      end.setFullYear(end.getFullYear() + whole);
+      end.setTime(end.getTime() + frac * 365.2425 * 24 * 3600 * 1000);
+      return end;
+    }
+
+    // ===================== STATE & ELEMENTS =====================
+    const elAge = document.getElementById("age");
+    const elEnd = document.getElementById("endDate");
+    const elLived = document.getElementById("lived");
+    const elLeft = document.getElementById("left");
+    const elPct = document.getElementById("pct");
+    const elBar = document.getElementById("bar");
+
+    const iDob = document.getElementById("dob");
+    const iExp = document.getElementById("expectancy");
+    const iPresets = document.getElementById("presets");
+    const btnSave = document.getElementById("save");
+    const btnLink = document.getElementById("link");
+
+    // Load initial values: URL params -> localStorage -> defaults in HTML
+    (function init() {
+      const params = getParams();
+      const lsDob = localStorage.getItem("lifeCounter.dob");
+      const lsExp = localStorage.getItem("lifeCounter.expectancy");
+
+      if (params.dob) iDob.value = params.dob;
+      else if (lsDob) iDob.value = lsDob;
+
+      if (!isNaN(params.expectancy)) iExp.value = params.expectancy.toString();
+      else if (lsExp) iExp.value = lsExp;
+
+      // When a preset is selected, update expectancy input
+      iPresets.addEventListener("change", () => {
+        if (iPresets.value) iExp.value = iPresets.value;
+      });
+
+      // Save to localStorage
+      btnSave.addEventListener("click", () => {
+        localStorage.setItem("lifeCounter.dob", iDob.value);
+        localStorage.setItem("lifeCounter.expectancy", iExp.value);
+        alert("Saved! These settings will load next time.");
+      });
+
+      // Create a shareable URL with current settings
+      btnLink.addEventListener("click", async () => {
+        const url = new URL(location.href);
+        url.searchParams.set("dob", iDob.value);
+        url.searchParams.set("expectancy", iExp.value);
+        try {
+          await navigator.clipboard.writeText(url.toString());
+          alert("Copied URL to clipboard!");
+        } catch {
+          prompt("Copy this URL:", url.toString());
+        }
+      });
+    })();
+
+    // ===================== MAIN TICKER LOOP =====================
+    function tick() {
+      const dob = new Date(iDob.value + "T00:00:00");
+      const expectancy = parseFloat(iExp.value || "81.2");
+      const end = computeEndDate(dob, expectancy);
+      const now = new Date();
+
+      // Derive totals in milliseconds
+      const totalMs = end - dob;
+      const livedMs = now - dob;
+      const leftMs  = end - now;
+
+      // Update summary fields
+      elAge.textContent = fmtSpan(livedMs);
+      elEnd.textContent = end.toLocaleString(undefined, { dateStyle: "full", timeStyle: "short" });
+      elLived.textContent = fmtSpan(livedMs);
+      elLeft.textContent  = fmtSpan(leftMs);
+
+      // Progress bar + percentage
+      const pct = Math.max(0, Math.min(100, (livedMs / totalMs) * 100));
+      elPct.textContent = pct.toFixed(6) + "%";
+      elBar.style.width = pct + "%";
+
+      // Next animation frame
+      requestAnimationFrame(tick);
+    }
+    tick();
+  </script>
+</body>
+</html>
